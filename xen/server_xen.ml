@@ -74,4 +74,4 @@ let main () =
 		OS.Time.sleep 5.
 	done
 
-let _ = OS.Main.run (main ())
+(* let _ = OS.Main.run (main ()) *)
