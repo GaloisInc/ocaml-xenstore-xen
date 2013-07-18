@@ -124,6 +124,9 @@ let create_domain address =
 			c = Lwt_condition.create ();
 			closing = false;
 		} in
+		Xenstore_ring.Ring.init (d.ring);
+		(* wake up control domain *)
+		Eventchn.notify eventchn port;
 		let (background_thread: unit Lwt.t) =
 			while_lwt true do
 				debug "Waiting for signal from domid %d on local port %d (remote port %d)" address.domid (Eventchn.to_int port) address.remote_port;

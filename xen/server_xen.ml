@@ -35,20 +35,19 @@ let introduce_dom0 () =
 	(* the cmd_line should have --event %d set by init-xenstore-domain.c *)
 	let cmd_line = (OS.Start_info.((get ()).cmd_line)) in
 	let bits = Junk.String.split ' ' cmd_line in
-	let rec loop = function
-		| "--event" :: e :: _ ->
-			Some (int_of_string e)
-		| [] ->
-			None
-		| _ :: rest ->
-			loop rest in
-	match loop bits with
+	let args = match bits with
+	           | s :: _ -> Some (int_of_string s)
+	           | _      -> None in
+	match args with
 	| None ->
-		error "Failed to find --event <port> on the commandline: %s" cmd_line;
+		error "Failed to find control domain ID on commandline: %s" cmd_line;
 		()
-	| Some port ->
-		Introduce.(introduce { domid = 0; mfn = 0n; remote_port = port });
-		debug "Introduced domain 0 with port = %d" port
+	| Some id ->
+	  let mfn = (OS.Start_info.((get ()).store_mfn)) in
+	  let port = (OS.Start_info.((get ()).store_evtchn)) in
+		Introduce.(introduce { domid = id; mfn = (Nativeint.of_int mfn);
+	                         remote_port = port });
+		debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
 
 let main () =
 	debug "Mirage xenstored starting";
