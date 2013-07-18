@@ -69,7 +69,7 @@ let main () =
 	end;
 *)
 	while_lwt true do
-		debug "tick";
+		(*debug "tick";*)
 		OS.Time.sleep 5.
 	done
 

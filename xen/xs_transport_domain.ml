@@ -129,15 +129,16 @@ let create_domain address =
 		Eventchn.notify eventchn port;
 		let (background_thread: unit Lwt.t) =
 			while_lwt true do
-				debug "Waiting for signal from domid %d on local port %d (remote port %d)" address.domid (Eventchn.to_int port) address.remote_port;
+				(*debug "Waiting for signal from domid %d on local port %d (remote port %d)" address.domid (Eventchn.to_int port) address.remote_port;*)
 				lwt () = Activations.wait port in
-				debug "Waking domid %d" d.address.domid;
+				(*debug "Waking domid %d" d.address.domid;*)
 
+				(*
 				debug "req_cons = %ld; req_prod = %ld; rsp_cons = %ld; rsp_prod = %ld"
 					(get_xenstore_ring_req_cons page)
 					(get_xenstore_ring_req_prod page)
 					(get_xenstore_ring_rsp_cons page)
-					(get_xenstore_ring_rsp_prod page);
+					(get_xenstore_ring_rsp_prod page);*)
 
 				Lwt_condition.broadcast d.c ();
 				return ()
@@ -151,7 +152,7 @@ let create_domain address =
 		None
  
 let rec read t buf ofs len =
-	debug "read size=%d ofs=%d len=%d" (String.length buf) ofs len;
+	(*debug "read size=%d ofs=%d len=%d" (String.length buf) ofs len;*)
 	if t.closing then begin
 		debug "read failing: Ring_shutdown";
 		fail Ring_shutdown
@@ -170,7 +171,7 @@ let rec read t buf ofs len =
 		end
 
 let rec write t buf ofs len =
-	debug "write size=%d ofs=%d len=%d" (String.length buf) ofs len;
+	(*debug "write size=%d ofs=%d len=%d" (String.length buf) ofs len;*)
 	if t.closing then begin
 		debug "write failing: Ring_shutdown";
 		fail Ring_shutdown
