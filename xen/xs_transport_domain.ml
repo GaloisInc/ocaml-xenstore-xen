@@ -160,9 +160,9 @@ let rec read t buf ofs len =
 		let n = Xenstore_ring.Ring.Back.unsafe_read t.ring buf ofs len in
 		if n = 0
 		then begin
-			debug "read of 0, blocking";
+			(*debug "read of 0, blocking";*)
 			lwt () = Lwt_condition.wait t.c in
-			debug "reader woken up";
+			(*debug "reader woken up";*)
 			read t buf ofs len
 		end else begin
 			debug "read %d" n;
