@@ -102,15 +102,6 @@ let (_: 'a Lwt.t) =
 	virq_thread port
 *)
 
-cstruct xenstore_ring{
-	uint8_t req[1024];
-	uint8_t rsp[1024];
-	uint32_t req_cons;
-	uint32_t req_prod;
-	uint32_t rsp_cons;
-	uint32_t rsp_prod
-} as little_endian
-
 let create_domain address =
 	match Gnttab.map interface { Gnttab.domid = address.domid; ref = Gnt.xenstore } true with
 	| Some h ->
