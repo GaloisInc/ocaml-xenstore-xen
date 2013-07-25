@@ -31,23 +31,37 @@ let rec logging_thread logger =
 			) lines in
 	logging_thread logger
 
+(* Parsed command line options. *)
+type options = {
+  event: int option;
+  master_domid: int option;
+}
+
 let introduce_dom0 () =
 	(* the cmd_line should have --event %d set by init-xenstore-domain.c *)
 	let cmd_line = (OS.Start_info.((get ()).cmd_line)) in
+  debug "cmd_line: %s" cmd_line;
 	let bits = Junk.String.split ' ' cmd_line in
-	let args = match bits with
-	           | s :: _ -> Some (int_of_string s)
-	           | _      -> None in
-	match args with
-	| None ->
-		error "Failed to find control domain ID on commandline: %s" cmd_line;
-		()
-	| Some id ->
-	  let mfn = (OS.Start_info.((get ()).store_mfn)) in
-	  let port = (OS.Start_info.((get ()).store_evtchn)) in
-		Introduce.(introduce { domid = id; mfn = (Nativeint.of_int mfn);
-	                         remote_port = port });
-		debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
+  let rec loop opts = function
+    | "--event" :: e :: rest ->
+      loop { opts with event = Some (int_of_string e) } rest
+    | "--master-domid" :: d :: rest ->
+      loop { opts with master_domid = Some (int_of_string d) } rest
+    | _ :: rest -> loop opts rest
+    | [] -> opts in
+  let opts = loop { event = None; master_domid = None } bits in
+  match opts with
+    | { event = Some port; master_domid = Some id } ->
+	    let mfn = (OS.Start_info.((get ()).store_mfn)) in
+      Introduce.(introduce { domid = id; mfn = Nativeint.of_int mfn;
+                             remote_port = port });
+		  debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
+    | { event = None; _ } ->
+      error "Missing --event option.";
+      ()
+    | { master_domid = None; _ } ->
+      error "Missing --master-domid option.";
+      ()
 
 let main () =
 	debug "Mirage xenstored starting";
