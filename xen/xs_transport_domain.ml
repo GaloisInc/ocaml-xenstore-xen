@@ -115,6 +115,9 @@ let create_domain address =
 			c = Lwt_condition.create ();
 			closing = false;
 		} in
+		let peer_sid = Flask.getpeersid port in
+		let peer_context = Flask.sid_to_context peer_sid in
+		debug "remote sid=%lu context=%s" peer_sid peer_context;
 		Xenstore_ring.Ring.init (d.ring);
 		(* wake up control domain *)
 		Eventchn.notify eventchn port;
