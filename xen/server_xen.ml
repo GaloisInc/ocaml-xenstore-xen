@@ -15,10 +15,17 @@
 open Lwt
 open Xs_protocol
 open Xenstore_server
+open Xs_flask
+open Xssm
 
 let debug fmt = Logging.debug "server_xen" fmt
 let warn  fmt = Logging.warn  "server_xen" fmt
 let error fmt = Logging.error "server_xen" fmt
+
+let flask_operations: xssm_operations = {
+	read = Hooks.flask_read;
+	write = Hooks.flask_write;
+}
 
 module DomainServer = Xs_server.Server(Xs_transport_domain)
 
@@ -67,6 +74,8 @@ let main () =
 	debug "Mirage xenstored starting";
 	let (_: 'a) = logging_thread Logging.logger in
 	let (_: 'a) = logging_thread Logging.access_logger in
+
+	Xs_server.security := flask_operations;
 
 	let (a: unit Lwt.t) = DomainServer.serve_forever () in
 	debug "Started server on xen inter-domain transport";
