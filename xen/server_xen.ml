@@ -23,8 +23,23 @@ let warn  fmt = Logging.warn  "server_xen" fmt
 let error fmt = Logging.error "server_xen" fmt
 
 let flask_operations: xssm_operations = {
-	read = Hooks.flask_read;
-	write = Hooks.flask_write;
+  read = Hooks.flask_read;
+  write = Hooks.flask_write;
+  create = Hooks.flask_create;
+  delete = Hooks.flask_delete;
+  chmod = Hooks.flask_chmod;
+  relabelfrom = Hooks.flask_relabelfrom;
+  relabelto = Hooks.flask_relabelto;
+  override = Hooks.flask_override;
+  bind = Hooks.flask_bind;
+  transition = Hooks.flask_transition;
+  introduce = Hooks.flask_introduce;
+  stat = Hooks.flask_stat;
+  release = Hooks.flask_release;
+  resume = Hooks.flask_resume;
+  chown_from = Hooks.flask_chown_from;
+  chown_to = Hooks.flask_chown_to;
+  chown_transition = Hooks.flask_chown_transition;
 }
 
 module DomainServer = Xs_server.Server(Xs_transport_domain)
@@ -75,7 +90,7 @@ let main () =
 	let (_: 'a) = logging_thread Logging.logger in
 	let (_: 'a) = logging_thread Logging.access_logger in
 
-	Xs_server.security := flask_operations;
+	Xssm.set_security flask_operations;
 
 	let (a: unit Lwt.t) = DomainServer.serve_forever () in
 	debug "Started server on xen inter-domain transport";
