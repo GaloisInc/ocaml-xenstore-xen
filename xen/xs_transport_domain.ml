@@ -159,7 +159,7 @@ let rec read t buf ofs len =
 			(*debug "reader woken up";*)
 			read t buf ofs len
 		end else begin
-			debug "read %d" n;
+			(*debug "read %d" n;*)
 			Eventchn.notify eventchn t.port;
 			return n
 		end
@@ -173,9 +173,9 @@ let rec write t buf ofs len =
 		let n = Xenstore_ring.Ring.Back.unsafe_write t.ring buf ofs len in
 		if n > 0 then Eventchn.notify eventchn t.port;
 		if n < len then begin
-			debug "write %d < %d blocking" n len;
+			(*debug "write %d < %d blocking" n len;*)
 			lwt () = Lwt_condition.wait t.c in
-			debug "writer woken up";
+			(*debug "writer woken up";**)
 			write t buf (ofs + n) (len - n)
 		end else return ()
 
