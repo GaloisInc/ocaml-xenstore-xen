@@ -40,6 +40,7 @@ let flask_operations: xssm_operations = {
   chown_from = Hooks.flask_chown_from;
   chown_to = Hooks.flask_chown_to;
   chown_transition = Hooks.flask_chown_transition;
+  new_node_label = Hooks.new_node_label;
 }
 
 module DomainServer = Xs_server.Server(Xs_transport_domain)
