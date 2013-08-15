@@ -222,7 +222,7 @@ let namespace_of t =
 	let module Interface = struct
 		include Namespace.Unsupported
 
-	let read _ (perms: Perms.t) (path: Store.Path.t) =
+	let read _ _ (perms: Perms.t) (path: Store.Path.t) =
 		Perms.has perms Perms.CONFIGURE;
 		match Store.Path.to_string_list path with
 		| [] -> ""
@@ -250,7 +250,7 @@ let namespace_of t =
 			Lwt_condition.broadcast t.c ()
 		| _ -> raise Perms.Permission_denied
 
-	let exists t perms path = try ignore(read t perms path); true with Store.Path.Doesnt_exist _ -> false
+	let exists t accesser perms path = try ignore(read t accesser perms path); true with Store.Path.Doesnt_exist _ -> false
 
 	let list t perms path =
 		Perms.has perms Perms.CONFIGURE;
