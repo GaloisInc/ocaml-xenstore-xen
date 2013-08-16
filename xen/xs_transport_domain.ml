@@ -252,7 +252,7 @@ let namespace_of t =
 
 	let exists t accesser perms path = try ignore(read t accesser perms path); true with Store.Path.Doesnt_exist _ -> false
 
-	let list t perms path =
+	let list t _ perms path =
 		Perms.has perms Perms.CONFIGURE;
 		match Store.Path.to_string_list path with
 		| [] -> [ "mfn"; "local-port"; "remote-port"; "closing"; "wakeup"; "request"; "response" ]
