@@ -58,46 +58,95 @@ let rec logging_thread logger =
 (* Parsed command line options. *)
 type options = {
   event: int option;
-  master_domid: int option;
+  master_domid: int;
+  flask_enable : bool;
+  flask_enforcing : bool;
 }
 
-let introduce_dom0 () =
-	(* the cmd_line should have --event %d set by init-xenstore-domain.c *)
-	let cmd_line = (OS.Start_info.((get ()).cmd_line)) in
-  debug "cmd_line: %s" cmd_line;
-	let bits = Junk.String.split ' ' cmd_line in
+let default_options = {
+  event = None;
+  master_domid = 0;
+  flask_enable = false;
+  flask_enforcing = false;
+}
+
+(* Convert a string to an "int option". *)
+let safe_int_of_string s =
+  try
+    Some (int_of_string s)
+  with Failure _ ->
+    None
+
+(* Accepts "1" and "true" as true, "0" and "false" as false. *)
+let safe_bool_of_string s =
+  match s with
+  | "1" | "true"  -> true
+  | "0" | "false" -> false
+  | _  ->
+    warn "Invalid boolean argument: %s" s;
+    false
+
+(* Check for required options, raising "Failure" if options are missing. *)
+let check_required_options opts =
+  let check_option name x =
+    match x with
+    | Some _ -> ()
+    | None   -> error "Missing required option: %s" name in
+  check_option "--event" opts.event
+
+(* Retrieve a "Some" from an "option" or raise "Failure". *)
+let option_get x =
+  match x with
+  | Some y -> y
+  | None -> raise (Failure "option_get None")
+
+(* Parse the command line and return an "options" record.
+   Raises "Failure" if any required options are missing. *)
+let parse_options () =
+  let cmd_line = OS.Start_info.((get ()).cmd_line) in
+  let words = Junk.String.split ' ' cmd_line in
   let rec loop opts = function
     | "--event" :: e :: rest ->
-      loop { opts with event = Some (int_of_string e) } rest
+      loop { opts with event = safe_int_of_string e } rest
     | "--master-domid" :: d :: rest ->
-      loop { opts with master_domid = Some (int_of_string d) } rest
-    | _ :: rest -> loop opts rest
+      loop { opts with master_domid = int_of_string d } rest
+    | "--flask-enable" :: x :: rest ->
+      loop { opts with flask_enable = safe_bool_of_string x } rest
+    | "--flask-enforcing" :: x :: rest ->
+      loop { opts with flask_enforcing = safe_bool_of_string x } rest
+    | s :: rest ->
+      warn "Unknown option: %s" s;
+      loop opts rest
     | [] -> opts in
-  let opts = loop { event = None; master_domid = None } bits in
-  match opts with
-    | { event = Some port; master_domid = Some id } ->
-	    let mfn = (OS.Start_info.((get ()).store_mfn)) in
-      Introduce.(introduce { domid = id; mfn = Nativeint.of_int mfn;
-                             remote_port = port });
-		  debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
-    | { event = None; _ } ->
-      error "Missing --event option.";
-      ()
-    | { master_domid = None; _ } ->
-      error "Missing --master-domid option.";
-      ()
+  let opts = loop default_options words in
+  check_required_options opts;
+  opts
+
+let introduce_dom0 opts =
+  let port = option_get opts.event in
+  let id = opts.master_domid in
+  let mfn = (OS.Start_info.((get ()).store_mfn)) in
+  let nmfn = Nativeint.of_int mfn in
+  let intro = Introduce.({ domid = id; mfn = nmfn; remote_port = port }) in
+  Introduce.introduce intro;
+  debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
 
 let main () =
 	debug "Mirage xenstored starting";
 	let (_: 'a) = logging_thread Logging.logger in
 	let (_: 'a) = logging_thread Logging.access_logger in
+	let opts = parse_options () in
 
-	Xssm.set_security flask_operations;
+	if opts.flask_enable then begin
+		Xssm.set_security flask_operations;
+		Perms.set_dom0_check_enabled false;
+		Hooks.flask_setenforce opts.flask_enforcing
+	end;
 
-	let (a: unit Lwt.t) = DomainServer.serve_forever () in
+	let (_: unit Lwt.t) = DomainServer.serve_forever () in
 	debug "Started server on xen inter-domain transport";
 
-	introduce_dom0 ();
+	introduce_dom0 opts;
 (*
 	debug "getdomaininfo 0";
 	begin match OS.Domctl.getdomaininfo 0 with
