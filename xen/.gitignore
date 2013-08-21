@@ -5,3 +5,4 @@ main.ml
 mir-xenstore.map
 mir-xenstore.xen
 myocamlbuild.ml
+xenstore.xl
