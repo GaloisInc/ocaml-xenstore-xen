@@ -143,6 +143,7 @@ let main () =
 		Hooks.flask_setenforce opts.flask_enforcing
 	end;
 
+	Perms.set_dom0_id opts.master_domid;
 	let (_: unit Lwt.t) = DomainServer.serve_forever () in
 	debug "Started server on xen inter-domain transport";
 
