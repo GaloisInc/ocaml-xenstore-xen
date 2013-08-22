@@ -41,6 +41,9 @@ let flask_operations: xssm_operations = {
   chown_to = Hooks.flask_chown_to;
   chown_transition = Hooks.flask_chown_transition;
   retain_owner = Hooks.flask_retain_owner;
+  make_priv_for = Hooks.flask_make_priv_for;
+  set_as_target = Hooks.flask_set_as_target;
+  set_target = Hooks.flask_set_target;
   new_node_label = Hooks.new_node_label;
 }
 
