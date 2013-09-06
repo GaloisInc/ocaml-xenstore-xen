@@ -22,6 +22,21 @@ let debug fmt = Logging.debug "server_xen" fmt
 let warn  fmt = Logging.warn  "server_xen" fmt
 let error fmt = Logging.error "server_xen" fmt
 
+let parse_path_db () =
+  let rec parse_lines words = function
+    | [] -> words
+    | line :: rest -> parse_lines ((Junk.String.split ' ' line) @ words) rest
+  in
+  let rec parse_words values = function
+    | [] -> values
+    | "ctx" :: path :: ty :: rest -> parse_words ((path,Path_db.Value_str ("system_u:object_r:" ^ ty)) :: values) rest
+    | "dom" :: path :: rest -> parse_words ((path,Path_db.Value_domid) :: values) rest
+    | rest -> raise (Invalid_argument (List.hd rest))
+  in
+  let path_db_array  = OS.Start_info.((mod_array ())) in
+  let path_db_string = String.trim (OS.Io_page.to_string path_db_array) in
+  Path_db.build_db (parse_words [] (parse_lines [] (Junk.String.split '\n' path_db_string)))
+
 let flask_operations: xssm_operations = {
   read = Hooks.flask_read;
   write = Hooks.flask_write;
@@ -44,7 +59,7 @@ let flask_operations: xssm_operations = {
   make_priv_for = Hooks.flask_make_priv_for;
   set_as_target = Hooks.flask_set_as_target;
   set_target = Hooks.flask_set_target;
-  new_node_label = Hooks.new_node_label;
+  new_node_label = Hooks.new_node_label (parse_path_db ());
 }
 
 module DomainServer = Xs_server.Server(Xs_transport_domain)
