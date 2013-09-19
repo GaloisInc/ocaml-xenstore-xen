@@ -166,16 +166,15 @@ let main () =
 	debug "Started server on xen inter-domain transport";
 
 	introduce_dom0 opts;
-(*
-	debug "getdomaininfo 0";
-	begin match OS.Domctl.getdomaininfo 0 with
+
+	debug "getdomaininfo %d" opts.master_domid;
+	begin match OS.Domctl.getdomaininfo opts.master_domid with
 	| None ->
 		debug "xc_domain_getinfo failed"
 	| Some di ->
-		let open OS.Domctl.Xen_domctl_getdomaininfo in
-		debug "domain %d: dying = %b; shutdown = %b" di.domid di.dying di.shutdown
+		debug "domain %d: dying = %b; shutdown = %b" di.OS.Domctl.domid di.OS.Domctl.dying di.OS.Domctl.shutdown
 	end;
-*)
+
 	while_lwt true do
 		(*debug "tick";*)
 		OS.Time.sleep 5.
