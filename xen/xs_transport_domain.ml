@@ -98,6 +98,18 @@ let (_: 'a Lwt.t) =
 	debug "Bound DOM_EXC VIRQ to port %d" (Eventchn.to_int port);
 	virq_thread port
 
+(* Handle the XSM_POLICY_RESET VIRQ *)
+let rec virq_xsm_policy_reset_thread port =
+	lwt () = Activations.wait port in
+	debug "reset XSM policy";
+	Xs_flask.Hooks.flask_clear_avc_cache ();
+	virq_xsm_policy_reset_thread port
+
+let (_: 'a Lwt.t) =
+	let port = Eventchn.bind_xsm_policy_reset_virq eventchn in
+	debug "Bound XSM_POLICY_RESET VIRQ to port %d" (Eventchn.to_int port);
+	virq_xsm_policy_reset_thread port
+
 let create_domain address =
 	match Gnttab.map interface { Gnttab.domid = address.domid; ref = Gnt.xenstore } true with
 	| Some h ->
