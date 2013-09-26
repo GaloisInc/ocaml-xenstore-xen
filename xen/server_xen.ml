@@ -37,6 +37,8 @@ let parse_path_db () =
   let path_db_string = String.trim (OS.Io_page.to_string path_db_array) in
   Path_db.build_db (parse_words [] (parse_lines [] (Junk.String.split '\n' path_db_string)))
 
+let path_db = parse_path_db ()
+
 let flask_operations: xssm_operations = {
   read = Hooks.flask_read;
   write = Hooks.flask_write;
@@ -59,7 +61,9 @@ let flask_operations: xssm_operations = {
   make_priv_for = Hooks.flask_make_priv_for;
   set_as_target = Hooks.flask_set_as_target;
   set_target = Hooks.flask_set_target;
-  new_node_label = Hooks.new_node_label (parse_path_db ());
+  new_node_label = Hooks.new_node_label path_db;
+  get_value_type = Hooks.flask_get_value_type path_db;
+  check_domid = Hooks.flask_check_domid;
 }
 
 module DomainServer = Xs_server.Server(Xs_transport_domain)
