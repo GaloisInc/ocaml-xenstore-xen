@@ -8,6 +8,6 @@ if ! hash mirari 2>/dev/null; then
   opam install -y mirari.999
 fi
 
-mirari clean
+test -f Makefile && mirari clean
 mirari configure --xen
 mirari build --xen

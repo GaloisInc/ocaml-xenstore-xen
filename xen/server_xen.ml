@@ -22,7 +22,8 @@ let debug fmt = Logging.debug "server_xen" fmt
 let warn  fmt = Logging.warn  "server_xen" fmt
 let error fmt = Logging.error "server_xen" fmt
 
-let parse_path_db () =
+(* Parse the path database from a bigarray. *)
+let parse_path_db arr =
   let rec parse_lines words = function
     | [] -> words
     | line :: rest -> parse_lines ((Junk.String.split ' ' line) @ words) rest
@@ -31,15 +32,43 @@ let parse_path_db () =
     | [] -> values
     | "ctx" :: path :: ty :: rest -> parse_words ((path,Path_db.Value_str ("system_u:object_r:" ^ ty)) :: values) rest
     | "dom" :: path :: rest -> parse_words ((path,Path_db.Value_domid) :: values) rest
-    | rest -> raise (Invalid_argument (List.hd rest))
+    | rest -> raise (Invalid_argument (List.hd rest)) in
+  let str = String.trim (OS.Io_page.to_string arr) in
+  Path_db.build_db (parse_words [] (parse_lines [] (Junk.String.split '\n' str)))
+
+(* Parse the context database from a bigarray. *)
+let parse_context_db arr =
+  let str = String.trim (OS.Io_page.to_string arr) in
+  let lines = Junk.String.split '\n' str in
+  let parse line db =
+    match Junk.String.split ' ' line with
+    | "user" :: u1 :: u2 :: [] ->
+      Context_db.insert_user u1 u2 db
+    | "role" :: r1 :: r2 :: [] ->
+      Context_db.insert_role r1 r2 db
+    | "type" :: t1 :: t2 :: [] ->
+      Context_db.insert_type t1 t2 db
+    | [] -> db    (* ignore blank lines *)
+    | _  -> raise (Invalid_argument line)
   in
-  let path_db_array  = OS.Start_info.((mod_array ())) in
-  let path_db_string = String.trim (OS.Io_page.to_string path_db_array) in
-  Path_db.build_db (parse_words [] (parse_lines [] (Junk.String.split '\n' path_db_string)))
+  List.fold_right parse lines Context_db.empty
 
-let path_db = parse_path_db ()
+(* Extract path and context databases and security policy from
+ * the ramdisk. *)
+let read_ramdisk () =
+  let ramdisk = OS.Start_info.((mod_array ())) in
+  let read_ramdisk_file filename =
+    let arr = OS.Cpio.find_file ramdisk filename in
+    debug "  %s  %d bytes" filename (OS.Io_page.length arr);
+    arr
+  in
+  debug "reading ramdisk (%d bytes):" (OS.Io_page.length ramdisk);
+  let policy     = read_ramdisk_file "xenstore.24" in
+  let path_db    = read_ramdisk_file "path-db.txt" in
+  let context_db = read_ramdisk_file "context-db.txt" in
+  (path_db, context_db, policy)
 
-let flask_operations: xssm_operations = {
+let flask_operations = {
   read = Hooks.flask_read;
   write = Hooks.flask_write;
   create = Hooks.flask_create;
@@ -61,8 +90,8 @@ let flask_operations: xssm_operations = {
   make_priv_for = Hooks.flask_make_priv_for;
   set_as_target = Hooks.flask_set_as_target;
   set_target = Hooks.flask_set_target;
-  new_node_label = Hooks.new_node_label path_db;
-  get_value_type = Hooks.flask_get_value_type path_db;
+  new_node_label = Hooks.new_node_label;
+  get_value_type = Hooks.flask_get_value_type;
   check_domid = Hooks.flask_check_domid;
 }
 
@@ -158,8 +187,15 @@ let main () =
 	let (_: 'a) = logging_thread Logging.logger in
 	let (_: 'a) = logging_thread Logging.access_logger in
 	let opts = parse_options () in
+  let (path_db_arr, context_db_arr, policy_arr) = read_ramdisk () in
+  let path_db    = parse_path_db path_db_arr in
+  let context_db = parse_context_db context_db_arr in
 
 	if opts.flask_enable then begin
+    (* TODO: Have xenstore-flask load the policy? *)
+    OS.Sepol.load_policy policy_arr;
+    Hooks.set_path_db path_db;
+    Hooks.set_context_db context_db;
 		Xssm.set_security flask_operations;
 		Perms.set_dom0_check_enabled false;
 		Hooks.flask_setenforce opts.flask_enforcing
@@ -176,7 +212,8 @@ let main () =
 	| None ->
 		debug "xc_domain_getinfo failed"
 	| Some di ->
-		debug "domain %d: dying = %b; shutdown = %b" di.OS.Domctl.domid di.OS.Domctl.dying di.OS.Domctl.shutdown
+		debug "domain %d: dying = %b; shutdown = %b"
+          di.OS.Domctl.domid di.OS.Domctl.dying di.OS.Domctl.shutdown
 	end;
 
 	while_lwt true do
