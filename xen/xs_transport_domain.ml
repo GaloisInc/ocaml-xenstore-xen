@@ -105,10 +105,12 @@ let rec virq_xsm_policy_reset_thread port =
 	Xs_flask.Hooks.flask_clear_avc_cache ();
 	virq_xsm_policy_reset_thread port
 
+(* XXX i believe this is no longer needed?
 let (_: 'a Lwt.t) =
 	let port = Eventchn.bind_xsm_policy_reset_virq eventchn in
 	debug "Bound XSM_POLICY_RESET VIRQ to port %d" (Eventchn.to_int port);
 	virq_xsm_policy_reset_thread port
+*)
 
 let create_domain address =
 	match Gnttab.map interface { Gnttab.domid = address.domid; ref = Gnt.xenstore } true with

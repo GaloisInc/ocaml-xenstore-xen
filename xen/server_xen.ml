@@ -33,12 +33,12 @@ let parse_path_db arr =
     | "ctx" :: path :: ty :: rest -> parse_words ((path,Path_db.Value_str ("system_u:object_r:" ^ ty)) :: values) rest
     | "dom" :: path :: rest -> parse_words ((path,Path_db.Value_domid) :: values) rest
     | rest -> raise (Invalid_argument (List.hd rest)) in
-  let str = String.trim (OS.Io_page.to_string arr) in
+  let str = String.trim (Io_page.to_string arr) in
   Path_db.build_db (parse_words [] (parse_lines [] (Junk.String.split '\n' str)))
 
 (* Parse the context database from a bigarray. *)
 let parse_context_db arr =
-  let str = String.trim (OS.Io_page.to_string arr) in
+  let str = String.trim (Io_page.to_string arr) in
   let lines = Junk.String.split '\n' str in
   let parse line db =
     match Junk.String.split ' ' line with
@@ -58,11 +58,15 @@ let parse_context_db arr =
 let read_ramdisk () =
   let ramdisk = OS.Start_info.((mod_array ())) in
   let read_ramdisk_file filename =
-    let arr = OS.Cpio.find_file ramdisk filename in
-    debug "  %s  %d bytes" filename (OS.Io_page.length arr);
-    arr
+    let arr = Cpio.find_file filename ramdisk in
+    match arr with
+    | Some x ->
+      debug "  %s  %d bytes" filename (Io_page.length x);
+      x
+    | None ->
+      raise (Failure ("file " ^ filename ^ " not found in ramdisk"))
   in
-  debug "reading ramdisk (%d bytes):" (OS.Io_page.length ramdisk);
+  debug "reading ramdisk (%d bytes):" (Io_page.length ramdisk);
   let policy     = read_ramdisk_file "xenstore.24" in
   let path_db    = read_ramdisk_file "path-db.txt" in
   let context_db = read_ramdisk_file "context-db.txt" in
@@ -101,7 +105,8 @@ let rec logging_thread logger =
 	lwt lines = Logging.get logger in
 	lwt () = Lwt_list.iter_s
 			(fun x ->
-				lwt () = OS.Console.log_s x in
+				(* XXX need access to the console module here *)
+				(* lwt () = C.log_s console x in *)
 				return ()
 			) lines in
 	logging_thread logger
@@ -182,7 +187,7 @@ let introduce_dom0 opts =
   Introduce.introduce intro;
   debug "Introduced domain %d with mfn = 0x%x, port = %d" id mfn port
 
-let main () =
+let main console_mod console =
 	debug "Mirage xenstored starting";
 	let (_: 'a) = logging_thread Logging.logger in
 	let (_: 'a) = logging_thread Logging.access_logger in
