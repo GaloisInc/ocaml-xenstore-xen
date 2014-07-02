@@ -107,6 +107,7 @@ let rec logging_thread logger =
 			(fun x ->
 				(* XXX need access to the console module here *)
 				(* lwt () = C.log_s console x in *)
+				Printf.printf "%s\n%!" x;
 				return ()
 			) lines in
 	logging_thread logger
