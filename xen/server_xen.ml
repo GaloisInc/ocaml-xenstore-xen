@@ -123,8 +123,8 @@ type options = {
 let default_options = {
   event = None;
   master_domid = 0;
-  flask_enable = false;
-  flask_enforcing = false;
+  flask_enable = true;
+  flask_enforcing = true;
 }
 
 (* Convert a string to an "int option". *)
